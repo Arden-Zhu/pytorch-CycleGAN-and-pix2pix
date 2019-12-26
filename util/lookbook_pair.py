@@ -13,22 +13,59 @@ import numpy as np
 from skimage import io, color
 from skimage.transform import resize
 from skimage.util import pad, img_as_ubyte
+import argparse
 
 class Options():
-    n_train = 400                            # number of product in training set
-    n_test = 100                             # number of product in test set
-    n_pair = 1                               # how many pair (maximum) for each product
+    def __init__(self):
+        self.initialized = False
+        
+    def initialize(self, parser):
+        parser.add_argument('--job_name', required=True, help='name of job, result of job will put into {target_folder}/{job_name}')
+        
+        parser.add_argument('--n_train', type=int, default=400, help='number of product in training set')
+        parser.add_argument('--n_test', type=int, default=100, help='number of product in test set')
+        parser.add_argument('--n_pair', type=int, default=1, help='# how many pair (maximum) for each product')
     
-    src_folder = 'c:/ml/lookbook/'           # folder of lookbook images
-    target_folder = 'c:/ml/lookbook_paired/' # parent folder of lookbook pairs images
-    job_name = 'test1'                       # name of job, result of job will put into {target_folder}/{job_name}
+        parser.add_argument('--src_folder', type=str, default='c:/ml/lookbook/', help='folder of lookbook images')
+        parser.add_argument('--target_folder', type=str, default='c:/ml/lookbook_paired/', help='parent folder of lookbook pairs images')
     
-    image_size = 256                         # default paired image size is 512 * 256
+        parser.add_argument('--image_size', type=int, default=256, help='default paired image size is 512 * 256')
+        
+        parser.add_argument('-f', default='', type=str, help='placeholder for notebook')
+        self.initialized = True
+        return parser
     
-    @property
-    def job_target_folder(self):
-        return self.target_folder + self.job_name + '/'
-    
+    def gather_options(self, args):
+        if not self.initialized:
+            parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+            parser = self.initialize(parser)
+        
+        # save and return the parser
+        self.parser = parser
+        return parser.parse_args(args)
+        
+    def print_options(self, opt):
+        message = ''
+        message += '----------------- Options ---------------\n'
+        for k, v in sorted(vars(opt).items()):
+            comment = ''
+            default = self.parser.get_default(k)
+            if v != default:
+                comment = '\t[default: %s]' % str(default)
+            message += '{:>25}: {:<30}{}\n'.format(str(k), str(v), comment)
+        message += '----------------- End -------------------'
+        print(message)
+
+    def parse(self, args=None):
+        opt = self.gather_options(args)
+        
+        opt.job_target_folder = opt.target_folder + opt.job_name + '/'
+
+        self.print_options(opt)
+
+        self.opt = opt
+        return self.opt
+
 def create_target_path(opt):
     image_path = opt.job_target_folder + 'image/'
     if not os.path.exists(image_path):
@@ -251,3 +288,6 @@ def generate_paired(opt):
             file = target_path + combine_file_name(product, model)
             io.imsave(file, img)
         
+if __name__ == '__main__':
+    opt = Options().parse()
+    generate_paired(opt)
